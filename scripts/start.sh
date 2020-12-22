@@ -43,7 +43,7 @@ fi
 
 # Скачиваем драйвер PostgreSQL
 if [ ! -f postgresql-42.2.5.jar ]; then
-    wget https://jdbc.postgresql.org/download/postgresql-42.2.5.jar
+    wget --no-check-certificate https://jdbc.postgresql.org/download/postgresql-42.2.5.jar
     cp postgresql-42.2.5.jar sqoop-1.4.7.bin__hadoop-2.6.0/lib/
 else
     echo "Postgresql driver already exists, skipping..."

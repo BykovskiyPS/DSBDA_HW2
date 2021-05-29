@@ -1,97 +1,64 @@
 package bdtc.lab2;
 
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.Encoders;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
 import org.junit.Test;
 
+import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
-
-import static bdtc.lab2.LogLevelEventCounter.countLogLevelPerHour;
+import java.util.Map;
 
 public class SparkTest {
-
-    final String testString1 = "1,6,Oct 26 13:54:06,fccd8a5f3a42,rsyslogd:, [origin software=\"rsyslogd\" swVersion=\"8.16.0\" x-pid=\"1401\" x-info=\"http://www.rsyslog.com\"] start\n";
-    final String testString2 = "2,3,Oct 26 14:54:06,fccd8a5f3a42,rsyslogd:, [origin software=\"rsyslogd\" swVersion=\"8.16.0\" x-pid=\"1401\" x-info=\"http://www.rsyslog.com\"] start\n";
-    final String testString3 = "3,6,Oct 26 14:54:06,fccd8a5f3a42,rsyslogd:, [origin software=\"rsyslogd\" swVersion=\"8.16.0\" x-pid=\"1401\" x-info=\"http://www.rsyslog.com\"] start\n";
-
-    SparkSession ss = SparkSession
-            .builder()
-            .master("local")
-            .appName("SparkSQLApplication")
-            .getOrCreate();
+    SparkConf conf = new SparkConf().setAppName("SparkRddApplication").setMaster("local");
+    JavaSparkContext sc = new JavaSparkContext(conf);
 
     @Test
-    public void testOneLog() {
+    public void testComputeIntensive() {
+        List<Element> elements = Arrays.asList(
+                new Element(new BigInteger("10"), 0),
+                new Element(new BigInteger("3"), 1),
+                new Element(new BigInteger("5"), 2),
+                new Element(new BigInteger("7"), 3),
+                new Element(new BigInteger("11"), 4)
+        );
+        List<BigInteger> expected = Arrays.asList(
+                new BigInteger("3628800"),
+                new BigInteger("6"),
+                new BigInteger("120"),
+                new BigInteger("5040"),
+                new BigInteger("39916800")
+        );
 
-        JavaSparkContext sc = new JavaSparkContext(ss.sparkContext());
-        JavaRDD<String> dudu = sc.parallelize(Arrays.asList(testString1));
-        JavaRDD<Row> result = countLogLevelPerHour(ss.createDataset(dudu.rdd(), Encoders.STRING()));
-        List<Row> rowList = result.collect();
+        JavaRDD<Element> input = sc.parallelize(elements);
+        JavaRDD<BigInteger> result = SparkRddApplication.computeIntensive(input);
+        List<BigInteger> getted = result.collect();
 
-        assert rowList.iterator().next().getInt(0) == 13;
-        assert rowList.iterator().next().getString(1).equals("6");
-        assert rowList.iterator().next().getLong(2) == 1;
+        for (Integer i = 0; i < getted.size(); i++) {
+            assert expected.get(i).equals(getted.get(i));
+        }
     }
 
     @Test
-    public void testTwoLogsSameTime(){
+    public void testDataIntensive() {
+        List<Element> elements = Arrays.asList(
+                new Element(new BigInteger("10"), 0),
+                new Element(new BigInteger("3"), 1),
+                new Element(new BigInteger("5"), 0),
+                new Element(new BigInteger("7"), 1)
+        );
+        Map<Integer,BigInteger> expected = new HashMap<Integer,BigInteger>() {{
+            put(0, new BigInteger("15"));
+            put(1, new BigInteger("10"));
+        }};
 
-
-        JavaSparkContext sc = new JavaSparkContext(ss.sparkContext());
-        JavaRDD<String> dudu = sc.parallelize(Arrays.asList(testString1, testString1));
-        JavaRDD<Row> result = countLogLevelPerHour(ss.createDataset(dudu.rdd(), Encoders.STRING()));
-        List<Row> rowList = result.collect();
-
-        assert rowList.iterator().next().getInt(0) == 13;
-        assert rowList.iterator().next().getString(1).equals("6");
-        assert rowList.iterator().next().getLong(2) == 2;
-    }
-
-    @Test
-    public void testTwoLogsDifferentTime(){
-
-        JavaSparkContext sc = new JavaSparkContext(ss.sparkContext());
-        JavaRDD<String> dudu = sc.parallelize(Arrays.asList(testString1, testString3));
-        JavaRDD<Row> result = countLogLevelPerHour(ss.createDataset(dudu.rdd(), Encoders.STRING()));
-        List<Row> rowList = result.collect();
-        Row firstRow = rowList.get(0);
-        Row secondRow = rowList.get(1);
-
-        assert firstRow.getInt(0) == 13;
-        assert firstRow.getString(1).equals("6");
-        assert firstRow.getLong(2) == 1;
-
-        assert secondRow.getInt(0) == 14;
-        assert secondRow.getString(1).equals("6");
-        assert secondRow.getLong(2) == 1;
-    }
-
-    @Test
-    public void testThreeLogs(){
-
-        JavaSparkContext sc = new JavaSparkContext(ss.sparkContext());
-        JavaRDD<String> dudu = sc.parallelize(Arrays.asList(testString1, testString2, testString3));
-        JavaRDD<Row> result = countLogLevelPerHour(ss.createDataset(dudu.rdd(), Encoders.STRING()));
-        List<Row> rowList = result.collect();
-        Row firstRow = rowList.get(0);
-        Row secondRow = rowList.get(1);
-        Row thirdRow = rowList.get(2);
-
-        assert firstRow.getInt(0) == 13;
-        assert firstRow.getString(1).equals("6");
-        assert firstRow.getLong(2) == 1;
-
-        assert secondRow.getInt(0) == 14;
-        assert secondRow.getString(1).equals("3");
-        assert secondRow.getLong(2) == 1;
-
-        assert thirdRow.getInt(0) == 14;
-        assert thirdRow.getString(1).equals("6");
-        assert thirdRow.getLong(2) == 1;
+        JavaRDD<Element> input = sc.parallelize(elements);
+        JavaPairRDD<Integer,BigInteger> result = SparkRddApplication.dataIntensive(input);
+        Map<Integer,BigInteger> getted = result.collectAsMap();
+        assert expected.equals(getted);
     }
 
 }

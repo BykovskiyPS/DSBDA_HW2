@@ -13,7 +13,11 @@ import java.util.List;
 import java.util.Map;
 
 public class SparkTest {
-    SparkConf conf = new SparkConf().setAppName("SparkRddApplication").setMaster("local");
+
+    SparkConf conf = new SparkConf()
+            .setAppName("SparkRddApplication")
+            .setMaster("local")
+            .set("spark.driver.allowMultipleContexts", "true");
     JavaSparkContext sc = new JavaSparkContext(conf);
 
     @Test

@@ -12,22 +12,6 @@ hdfs dfs -mkdir /user/root/input
 # Генерируем данные
 python3 generate.py --length $1 --count $2
 
-# Скачиваем kafka
-if [ ! -f kafka_2.13-2.8.0.tgz ]; then
-    wget https://apache-mirror.rbc.ru/pub/apache/kafka/2.8.0/kafka_2.13-2.8.0.tgz
-    tar xvzf kafka_2.13-2.8.0.tgz
-else
-    echo "Kafka already exists, skipping..."
-fi
-
-# Скачиваем Spark
-if [ ! -f spark-2.3.1-bin-hadoop2.7.tgz ]; then
-    wget https://archive.apache.org/dist/spark/spark-2.3.1/spark-2.3.1-bin-hadoop2.7.tgz
-    tar xvzf spark-2.3.1-bin-hadoop2.7.tgz
-else
-    echo "Spark already exists, skipping..."
-fi
-
 #export SPARK_HOME=/spark-2.3.1-bin-hadoop2.7
 #export HADOOP_CONF_DIR=$HADOOP_PREFIX/etc/hadoop
 #export PATH=$PATH:/spark-2.3.1-bin-hadoop2.7/bin
@@ -52,16 +36,12 @@ kafka_2.13-2.8.0/bin/kafka-console-consumer.sh --topic spark-event --partition 0
 hdfs dfs -put consumed /user/root/input
 hdfs dfs -get /user/root/input/consumed fromHdfs
 
-cat fromHdfs
-
 ./spark-2.3.1-bin-hadoop2.7/bin/spark-submit --class bdtc.lab2.SparkRddApplication --master local --deploy-mode client --executor-memory 1g --name intensive --conf "spark.app.id=SparkRddApplication" /tmp/lab2-1.0-SNAPSHOT-jar-with-dependencies.jar fromHdfs out
 
 rm -f data
 rm -f consumed
 rm -f fromHdfs
-
+hdfs dfs -put out /user/root/out
 echo "DONE! RESULT IS: "
-
-cat out/part-00000
+hdfs dfs -cat /user/root/out/part-00000
 rm -rf out
-#hdfs fs -cat /user/root/out/part-00000
